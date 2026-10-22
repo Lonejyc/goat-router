@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GOAT Router</title>
+<style>
+:root{--bg:#0b0d10;--card:#12161b;--line:#222a33;--fg:#e8ecf0;--mut:#7a8794;--blue:#4cc9f0;--amber:#f4a261;--red:#ef476f;--green:#6ee7a0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px ui-monospace,Menlo,monospace;padding:24px 16px;max-width:1100px;margin:auto}
+h1{font:700 44px system-ui;margin:0}small,.mut{color:var(--mut);letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:20px 0}
+.col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:150px}
+.col h3{margin:0 0 2px;font-size:16px}.dots{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue)}
+.dot.run{animation:p 1s infinite}.dot.FAIL{background:var(--red);box-shadow:0 0 8px var(--red)}.dot.PASS{background:var(--green);box-shadow:0 0 8px var(--green)}
+@keyframes p{50%{opacity:.3}}
+.stats{display:flex;gap:32px;flex-wrap:wrap;margin:8px 0 20px}.stats b{display:block;font:600 26px system-ui}
+table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--mut);font-weight:400;font-size:11px;text-transform:uppercase}
+.tag{padding:2px 8px;border-radius:6px;border:1px solid var(--line)}.tbl{overflow-x:auto}
+</style></head><body>
+<small>Router · agent + modèle + effort</small><h1>GOAT</h1>
+<div class="stats" id="stats"></div>
+<div class="cols" id="cols"></div>
+<div class="tbl"><table><thead><tr><th>Heure<th>Agent<th>Modèle<th>Effort<th>Durée<th>Tokens<th>Coût<th>Verdict</tr></thead><tbody id="rows"></tbody></table></div>
+<script>
+const M=['sonnet','opus','fable'],$=i=>document.getElementById(i);
+const f=(r)=>r.end?((r.end-r.start)/1000).toFixed(1)+'s':'…';
+async function tick(){
+  let runs=[];try{runs=await (await fetch('/runs')).json()}catch{}
+  const done=runs.filter(r=>r.end),cost=done.reduce((s,r)=>s+(r.cost||0),0),tok=done.reduce((s,r)=>s+(r.tokens||0),0);
+  $('stats').innerHTML=`<div><small>Runs</small><b>${runs.length}</b></div><div><small>Tokens</small><b>${(tok/1000).toFixed(1)}K</b></div><div><small>Coût estimé</small><b>$${cost.toFixed(2)}</b></div><div><small>Échecs</small><b>${runs.filter(r=>r.verdict==='FAIL').length}</b></div>`;
+  $('cols').innerHTML=M.map(m=>{const rs=runs.filter(r=>r.model===m);
+    return `<div class="col"><h3>${m.toUpperCase()}</h3><span class="mut">${rs.length} runs · $${rs.reduce((s,r)=>s+(r.cost||0),0).toFixed(2)}</span>
+    <div class="dots">${rs.map(r=>`<span class="dot ${r.end?(r.verdict||''):'run'}" title="${r.agent} · ${r.effort}"></span>`).join('')}</div></div>`}).join('');
+  $('rows').innerHTML=runs.slice().reverse().map(r=>`<tr><td>${new Date(r.start).toLocaleTimeString()}<td><span class="tag">${r.agent}</span><td>${r.model||'?'}<td>${r.effort||'?'}<td>${f(r)}<td>${r.tokens??'…'}<td>${r.cost!=null?'$'+r.cost.toFixed(3):'…'}<td>${r.verdict||''}</tr>`).join('');
+}
+tick();setInterval(tick,2000);
+</script></body></html>
