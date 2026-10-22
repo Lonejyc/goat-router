@@ -9,7 +9,7 @@ case "$1" in
       osascript -e "tell application \"iTerm\"
         create window with default profile command \"/bin/zsh -lc 'exec node $D/server.js'\"
       end tell" >/dev/null 2>&1 || nohup node "$D/server.js" >/dev/null 2>&1 &
-      sleep 1
+      for _ in 1 2 3 4 5 6 7 8 9 10; do up && break; sleep 0.5; done
     fi
     up && echo "router ON → http://localhost:4317" || echo "server failed to start" ;;
   off)

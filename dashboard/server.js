@@ -16,7 +16,8 @@ const usage = file => { // sum token usage from the subagent transcript
   const u = { in: 0, out: 0 };
   try {
     for (const l of fs.readFileSync(file, 'utf8').split('\n')) {
-      const x = l && JSON.parse(l).message?.usage;
+      const msg = l && JSON.parse(l).message, x = msg?.usage;
+      u.model = (/sonnet|opus|fable|haiku/.exec(msg?.model) || [])[0] || u.model; // real model, even without an agent .md
       if (x) { u.in += (x.input_tokens || 0) + (x.cache_creation_input_tokens || 0) + (x.cache_read_input_tokens || 0) * 0.1; u.out += x.output_tokens || 0; }
     }
   } catch {}
@@ -29,10 +30,14 @@ const runs = () => {
   try { lines = fs.readFileSync(path.join(DIR, 'events.jsonl'), 'utf8').split('\n').filter(Boolean); } catch {}
   for (const l of lines) {
     const e = JSON.parse(l), id = e.agent_id || e.t;
+    if (!e.agent_type) continue; // internal stops with no agent type (progress noise)
     const r = by.get(id) || { id, session: e.session_id, agent: e.agent_type, start: e.t, ...meta(e.agent_type) };
+    r.effort ||= e.effort?.level;
     if (e.hook_event_name === 'SubagentStop') {
       r.end = e.t;
-      const u = usage(e.agent_transcript_path), p = PRICE[r.model] || [0, 0];
+      const u = usage(e.agent_transcript_path);
+      r.model ||= u.model;
+      const p = PRICE[r.model] || [0, 0];
       r.tokens = Math.round(u.in + u.out);
       r.cost = (u.in * p[0] + u.out * p[1]) / 1e6;
       const m = /\b(PASS|FAIL)\b/.exec(e.last_assistant_message || '');
